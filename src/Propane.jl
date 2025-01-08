@@ -1,7 +1,7 @@
 module Propane
 
 include("Methane.jl")
-using .Methane 
+using .Carbon
 
 mass("C") * 1 + mass("H") * 4
 
