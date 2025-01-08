@@ -1,0 +1,13 @@
+name = "Propane"
+uuid = "51f9e2f5-ef06-4552-9397-d50102dcc0b7"
+authors = ["Jens M. Döbler <jens.doebler@gmx.net>"]
+version = "0.0.1"
+
+[compat]
+julia = "1.10"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
