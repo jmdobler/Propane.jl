@@ -1,5 +1,10 @@
 module Propane
 
-# Write your package code here.
+include("Methane.jl")
+using .Methane 
+
+mass("C") * 1 + mass("H") * 4
+
+
 
 end
