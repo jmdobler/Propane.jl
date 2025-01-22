@@ -4,6 +4,13 @@ module PropaneCore
 
 export Phase, @Phase, CURRENT_PHASE, take, @take, Material, Storage, STORAGE, SCOPE, scopesummary
 
+# Todo: Stage
+# Todo: Phase Parameter definition, eg volume
+# Todo: Phase Quantity normalisation by target amount or only @taking relative wt's and vol's
+# Todo: Phase in and out Stages
+# Todo: Phase Status: optional, urgent, inactive, processing ...
+# Tode: Phase execute()
+
 struct Phase
     name::String
     process::String
