@@ -2,28 +2,55 @@
 
 module PropaneCore
 
-export Phase, @Phase, CURRENT_PHASE, take, @take, Material, Storage, STORAGE, SCOPE, scopesummary
+export Stage, @Stage, Phase, @Phase, CURRENT_PHASE, take, @take, @supply, Material, Storage, STORAGE, Scope, SCOPE, scopesummary
+export urgent, _register, _getphase, _getstage
 
 # Todo: Stage
 # Todo: Phase Parameter definition, eg volume
 # Todo: Phase Quantity normalisation by target amount or only @taking relative wt's and vol's
-# Todo: Phase in and out Stages
-# Todo: Phase Status: optional, urgent, inactive, processing ...
+# Todo: Phase in and out Stages, @supply and @source 
+# Todo: Phase Status: optional, urgent, inactive / idle, processing ...
 # Tode: Phase execute()
+
+mutable struct Stage
+    name::String
+    process::String
+    allocation::Float64 #   Positive value = surplus that needs to be spent eventually, negative values = demand, which needs to be balanced urgently
+                        # a Stage with a demand (ie a negative allocation) is a sink, with a surplus (positive allocation) is a source
+                        # a Phase that supplys a Stage with a demand is urgent 
+                        # a Phase that sources a Stage with a surplus is optional 
+                        # otherwise a Phase is inactive 
+    isolated::Bool      #   An isolated Stage can be send to the storage for later use
+                        # there should be a separate Phase that supplies the storage (say, a wet intermediate can be isolated or further dried and then isolated)
+end
+
+function Stage(name::String, process::String; allocation::Float64 = 0.0, isolated::Bool = false)
+     return Stage(name, process, allocation, isolated)
+end
+
+
+macro Stage(name, isolate = false)
+    isolate !== false && isolate == Symbol("isolated") ? is_isolated = true : is_isolated = false
+    s = Stage(string(name), string(__module__); isolated = is_isolated)
+    _register(s)
+    return s
+end
 
 struct Phase
     name::String
     process::String
     actions::Vector{Expr}
     parameters::Dict{Symbol, Number}
+    supplies::Vector{Stage}            # Vector{Stage}
+    sources::Vector{Stage}             # Vector{Stage} use findall-function to link
 end 
 
 function Phase(name::String, processname::String)
-    return Phase(name, processname, Expr[], Dict())
+    return Phase(name, processname, Expr[], Dict(), Stage[], Stage[])
 end
 
 function Phase()
-    return Phase("", "", Expr[], Dict())
+    return Phase("", "", Expr[], Dict(), Stage[], Stage[])
 end
 
 function (p::Phase)() 
@@ -31,13 +58,45 @@ function (p::Phase)()
 end
 
 CURRENT_PHASE = Phase()
-SCOPE = Vector{Phase}()
+
+struct Scope
+    stages::Vector{Stage}     # Vector{Stage}
+    phases::Vector{Phase}     # Vector{Phase}
+end
+
+Scope() = Scope(Stage[], Phase[])
+SCOPE = Scope()
+
+_register(p::Phase, scope::Scope = SCOPE) = _getphase(p.name, scope) |> isempty ? push!(scope.phases, p) : error("A Phase with the name $(p.name) is already registered.")
+_register(s::Stage, scope::Scope = SCOPE) = _getstage(s.name, scope) |> isempty ? push!(scope.stages, s) : error("A Stage with the name $(s.name) is already registered.")
+
+function Base.show(io::IO, scope::Scope)
+    println(io, "Scope with $(length(scope.stages)) Stages:")
+    for s in scope.stages
+        println(io, repeat(" ", 4), s.name, s.allocation !== 0.0 ? " ($(s.allocation))" : "")
+    end
+    println(io, "Scope contains $(length(scope.phases)) Phases:")
+    for p in scope.phases
+        println(io, repeat(" ", 4), p.name)
+    end
+end
 
 macro Phase(phasename)
     global CURRENT_PHASE = Phase(string(phasename), string(__module__))    
-    push!(SCOPE, CURRENT_PHASE)
+    _register(CURRENT_PHASE)
     return CURRENT_PHASE
 end
+
+function urgent(p::Phase; scope::Scope = SCOPE)
+    for s in p.supplies
+        if scope.stages[s].allocation < 0.0
+            return true
+        end
+    end
+    return false
+end
+
+    # stages_with_demand = filter(s -> s.allocation < 0.0, scope.stages)
 
 function take(action::Pair{String, Int64})
     mat = getmaterial(action[1])
@@ -62,8 +121,7 @@ macro Phase(phasename, block)
                 eval(macroexpr)
             end
             # global CURRENT_PHASE = Phase(String(phasename), eval.(filter(arg -> !(arg isa LineNumberNode), block.args)))
-            # @take Meee 123
-            push!(SCOPE, CURRENT_PHASE)
+            _register(CURRENT_PHASE)
             return CURRENT_PHASE
         else
             throw("expression block must be a begin ... end block")
@@ -93,14 +151,50 @@ function getmaterial(material::String)
     return Material(0, material)
 end
 
-function scopesummary(scope::Vector{Phase} = SCOPE)
-    for phs in scope
-        @info phs.name
+function scopesummary(scope::Scope)
+    for ps in scope
+        @info ps.key ps.value name
+    end
+end
+
+
+function supply(action::Pair{String, Float64})
+    SCOPE.stages[action[1]].allocation += action[2]
+end
+
+macro supply(stage, value)
+    push!(CURRENT_PHASE.actions, Expr(:call, supply, String(stage) => Float64(value)))
+    push!(CURRENT_PHASE.supplies, _getstage(String(stage)))
+end
+
+function _getstage(stagename::String, scope::Scope = SCOPE)
+    stageindices = findall(stage -> stage.name == stagename, scope.stages)
+    if !isempty(stageindices)
+        return scope.stages[first(stageindices)]
+    else
+        return []
+    end
+end
+
+function _getphase(phasename::String, scope::Scope = SCOPE)
+    phaseindices = findall(phase -> phase.name == phasename, scope.phases) 
+    if !isempty(phaseindices)
+        return scope.phases[first(phaseindices)]
+    else
+        return []
     end
 end
 
 end # Module PropaneCore
 
+
+# Tests
+using .PropaneCore
+
+
+
+
+#Module Selest
 
 module Selest
 
@@ -121,15 +215,19 @@ using ..PropaneCore
     @take DIPE 810
 end
 
+
+@Stage Destillate
+
 @Phase Me2Me begin
     @take DIPE 812
     @take THF 90
+    # @supply Selest 150
+    @supply Destillate 855
 end
 
-@Phase Me2Me
-    @take DIPE 812
-    @take THF 90
+# @Phase Entsorgung begin
+#     @source Destillate 100
+#     @supply OrganischerAbfall 100
+# end
 
 end # Module Selest
-
-using .PropaneCore
