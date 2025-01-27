@@ -2,7 +2,8 @@
 
 module PropaneCore
 
-export Stage, @Stage, Phase, @Phase, CURRENT_PHASE, take, @take, @supply, Material, Storage, STORAGE, Scope, SCOPE, scopesummary
+export Stage, @Stage, Phase, @Phase, CURRENT_PHASE, take, @take, supply, @supply, source, @source, Material, Storage, STORAGE, Scope, SCOPE
+export phases, stages, process_summary, scopesummary, run
 export urgent, _register, _getphase, _getstage
 
 # Todo: Stage
@@ -57,7 +58,19 @@ function (p::Phase)()
     return eval.(p.actions)
 end
 
+function (p::Phase)[]()
+    println("Executing Phase $(p.name)")
+    return eval.(p.actions)
+end
+
 CURRENT_PHASE = Phase()
+
+macro Phase(phasename)
+    global CURRENT_PHASE = Phase(string(phasename), string(__module__))    
+    _register(CURRENT_PHASE)
+    return CURRENT_PHASE
+end
+
 
 struct Scope
     stages::Vector{Stage}     # Vector{Stage}
@@ -81,20 +94,30 @@ function Base.show(io::IO, scope::Scope)
     end
 end
 
-macro Phase(phasename)
-    global CURRENT_PHASE = Phase(string(phasename), string(__module__))    
-    _register(CURRENT_PHASE)
-    return CURRENT_PHASE
-end
+phases(scope::Scope = SCOPE) = scope.phases
+stages(scope::Scope = SCOPE) = scope.stages
 
-function urgent(p::Phase; scope::Scope = SCOPE)
+
+function urgent(p::Phase)
     for s in p.supplies
-        if scope.stages[s].allocation < 0.0
+        if s.allocation < 0.0
             return true
         end
     end
     return false
 end
+
+function process_summary(scope::Scope = SCOPE)
+    ret = String[]
+    for p in scope.phases
+        push!(ret, p.process)
+    end
+    for s in scope.stages
+        push!(ret, s.process)
+    end
+    return unique(ret)
+end 
+
 
     # stages_with_demand = filter(s -> s.allocation < 0.0, scope.stages)
 
@@ -158,13 +181,26 @@ function scopesummary(scope::Scope)
 end
 
 
-function supply(action::Pair{String, Float64})
-    SCOPE.stages[action[1]].allocation += action[2]
+function supply(action::Pair{Stage, Float64})
+    # stage = action[1]
+    # added amount = action[2]
+    action[1].allocation += action[2]
 end
 
-macro supply(stage, value)
-    push!(CURRENT_PHASE.actions, Expr(:call, supply, String(stage) => Float64(value)))
-    push!(CURRENT_PHASE.supplies, _getstage(String(stage)))
+macro supply(stagename, value)
+    local stage = _getstage(String(stagename))
+    push!(CURRENT_PHASE.actions, Expr(:call, supply, stage => Float64(value)))
+    push!(CURRENT_PHASE.supplies, stage)
+end
+
+function source(action::Pair{Stage, Float64})
+    action[1].allocation -= action[2]
+end
+
+macro source(stagename, value)
+    local stage = _getstage(String(stagename))
+    push!(CURRENT_PHASE.actions, Expr(:call, source, stage => Float64(value)))
+    push!(CURRENT_PHASE.sources, stage)
 end
 
 function _getstage(stagename::String, scope::Scope = SCOPE)
@@ -184,6 +220,21 @@ function _getphase(phasename::String, scope::Scope = SCOPE)
         return []
     end
 end
+
+function run(scope::Scope = SCOPE)
+    urgentphases = urgent.(scope.phases)
+    runcycles = 0
+    while Base.:|(urgentphases...)
+        runcycles += 1
+        urgentphases = urgent.(scope.phases)
+        for p in scope.phases[urgentphases]
+            p()
+        end
+    end
+    return runcycles
+end
+
+
 
 end # Module PropaneCore
 
@@ -225,9 +276,11 @@ end
     @supply Destillate 855
 end
 
-# @Phase Entsorgung begin
-#     @source Destillate 100
-#     @supply OrganischerAbfall 100
-# end
+@Stage OrganischerAbfall isolated
+
+@Phase Entsorgung begin
+    @source Destillate 100
+    @supply OrganischerAbfall 100
+end
 
 end # Module Selest
