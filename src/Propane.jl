@@ -1,9 +1,7 @@
-module Propane
+include("PropaneCore.jl")
+using .PropaneCore
 
-include("Methane.jl")
-using .Carbon
+include("Selest.jl")
 
-mass("C") * 1 + mass("H") * 4
-mass("C") * 3 + mass("H") * 8
-
-end
+SCOPE.stages[1].allocation = -1000
+PropaneCore.run()
