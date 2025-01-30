@@ -1,15 +1,35 @@
 module PropaneCore
 
-export Stage, @Stage, Phase, @Phase, CURRENT_PHASE, take, @take, supply, @supply, source, @source, Material, Storage, STORAGE, Scope, SCOPE
-export phases, stages, process_summary, scopesummary, run
-export urgent, _register, _getphase, _getstage
+export Scope, SCOPE, phases, stages, units, process_summary, scopesummary
+export Stage, @Stage 
+export Unit, @Unit
+export Material, Storage, STORAGE, inventory
+export Phase, @Phase, CURRENT_PHASE, take, @take, supply, @supply, source, @source
+export run 
 
-# Todo: Stage
 # Todo: Phase Parameter definition, eg volume
 # Todo: Phase Quantity normalisation by target amount or only @taking relative wt's and vol's
-# Todo: Phase in and out Stages, @supply and @source 
+# Todo: Add resources and use @implement to assign a ressource to a (Phase or Stage)
+# Todo: Scale Phases by either 
 # Todo: Phase Status: optional, urgent, inactive / idle, processing ...
-# Tode: Phase execute()
+# Todo: Log results from run()
+# Todo: Access logged results within a dataframe / plot
+# Todo: Add time tracking
+# Todo: orchestrate Phases based on Status
+
+
+
+struct Unit
+    name::String
+    capacity::Float64
+    # cost::Float64
+end
+
+macro Unit(name, capacity)
+    u = Unit(String(name), Float64(capacity))
+    _register(u)
+    return u
+end
 
 mutable struct Stage
     name::String
@@ -27,13 +47,14 @@ function Stage(name::String, process::String; allocation::Float64 = 0.0, isolate
      return Stage(name, process, allocation, isolated)
 end
 
-
 macro Stage(name, isolate = false)
     isolate !== false && isolate == Symbol("isolated") ? is_isolated = true : is_isolated = false
     s = Stage(string(name), string(__module__); isolated = is_isolated)
     _register(s)
     return s
 end
+
+
 
 struct Phase
     name::String
@@ -70,16 +91,19 @@ macro Phase(phasename)
 end
 
 
+
 struct Scope
-    stages::Vector{Stage}     # Vector{Stage}
-    phases::Vector{Phase}     # Vector{Phase}
+    stages::Vector{Stage}     
+    phases::Vector{Phase}     
+    units::Vector{Unit}     
 end
 
-Scope() = Scope(Stage[], Phase[])
+Scope() = Scope(Stage[], Phase[], Unit[])
 SCOPE = Scope()
 
 _register(p::Phase, scope::Scope = SCOPE) = _getphase(p.name, scope) |> isempty ? push!(scope.phases, p) : error("A Phase with the name $(p.name) is already registered.")
 _register(s::Stage, scope::Scope = SCOPE) = _getstage(s.name, scope) |> isempty ? push!(scope.stages, s) : error("A Stage with the name $(s.name) is already registered.")
+_register(u::Unit, scope::Scope = SCOPE) = _getunit(u.name, scope) |> isempty ? push!(scope.units, u) : error("A Unit with the name $(u.name) is already registered.")  
 
 function Base.show(io::IO, scope::Scope)
     println(io, "Scope with $(length(scope.stages)) Stages:")
@@ -94,15 +118,11 @@ end
 
 phases(scope::Scope = SCOPE) = scope.phases
 stages(scope::Scope = SCOPE) = scope.stages
+units(scope::Scope = SCOPE) = scope.units
 
 
-function urgent(p::Phase)
-    for s in p.supplies
-        if s.allocation < 0.0
-            return true
-        end
-    end
-    return false
+function urgent(phase::Phase)
+    return minimum([suppliedstage.allocation for suppliedstage in phase.supplies]) < 0
 end
 
 function process_summary(scope::Scope = SCOPE)
@@ -116,20 +136,43 @@ function process_summary(scope::Scope = SCOPE)
     return unique(ret)
 end 
 
+struct Material
+    number::Int64
+    name::String
+end
 
-    # stages_with_demand = filter(s -> s.allocation < 0.0, scope.stages)
+struct Storage
+    materials::Dict{Material, Float64}
+end
 
-function take(action::Pair{String, Int64})
-    mat = getmaterial(action[1])
-    if haskey(STORAGE.materials, mat) == false
-        STORAGE.materials[mat] = -action[2]
-    else
+STORAGE = Storage(Dict{Material, Float64}())
+Base.getindex(storage::Storage, materialname::String) = for mat in keys(storage.materials) if mat.name == materialname return mat end end
+
+# function getmaterial(material::String)
+#     for mat in keys(STORAGE.materials)
+#         if mat.name == material
+#             return mat
+#         end
+#     end
+#     return Material(0, material)
+# end
+
+function inventory(storage::Storage = STORAGE)
+    return [(key.name, value) for (key, value) in storage.materials if value != 0.0]
+end
+
+
+function take(action::Pair{String, Float64})
+    mat = STORAGE[action[1]]
+    if mat !== nothing
         STORAGE.materials[mat] -= action[2]
+    else
+        STORAGE.materials[Material(0, action[1])] = -action[2]
     end
 end
 
 macro take(material, value)
-    push!(CURRENT_PHASE.actions, Expr(:call, take, String(material) => value))
+    push!(CURRENT_PHASE.actions, Expr(:call, take, String(material) => Float64(value)))
 end
 
 macro Phase(phasename, block)
@@ -152,25 +195,8 @@ macro Phase(phasename, block)
     end
 end
 
-struct Material
-    number::Int64
-    name::String
-end
 
-struct Storage
-    materials::Dict{Material, Float64}
-end
 
-STORAGE = Storage(Dict{Material, Float64}())
-
-function getmaterial(material::String)
-    for mat in keys(STORAGE.materials)
-        if mat.name == material
-            return mat
-        end
-    end
-    return Material(0, material)
-end
 
 function scopesummary(scope::Scope)
     for ps in scope
@@ -190,6 +216,8 @@ macro supply(stagename, value)
     push!(CURRENT_PHASE.actions, Expr(:call, supply, stage => Float64(value)))
     push!(CURRENT_PHASE.supplies, stage)
 end
+
+
 
 function source(action::Pair{Stage, Float64})
     action[1].allocation -= action[2]
@@ -214,6 +242,15 @@ function _getphase(phasename::String, scope::Scope = SCOPE)
     phaseindices = findall(phase -> phase.name == phasename, scope.phases) 
     if !isempty(phaseindices)
         return scope.phases[first(phaseindices)]
+    else
+        return []
+    end
+end
+
+function _getunit(unitname::String, scope::Scope = SCOPE)
+    unitindices = findall(unit -> unit.name == unitname, scope.units) 
+    if !isempty(unitindices)
+        return scope.units[first(unitindices)]
     else
         return []
     end
