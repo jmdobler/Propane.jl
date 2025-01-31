@@ -1,16 +1,20 @@
+
+# should I define a Scope variable in Main and pass it around?
+
 include("PropaneCore.jl")
-using .PropaneCore
 include("Testprocess.jl")
+using .PropaneCore              # seems like the order matters, using .PropaneCore should be called after SCOPE is ultimately defined. 
 
+@assert Main.SCOPE === PropaneCore.SCOPE
 
-PropaneCore.SCOPE.stages[1].allocation = -4000 
-PropaneCore.STORAGE.materials[PropaneCore.Material(1, "C")] = 100
-PropaneCore.STORAGE
+# SCOPE
+SCOPE.stages[end].allocation = -10_000 
 
-PropaneCore.SCOPE
-PropaneCore.urgent(PropaneCore.SCOPE.phases[1])
+# SCOPE.stages[1].allocation = -4000 
+# STORAGE.materials[Material(1, "C")] = 100
+
 
 PropaneCore.run()
-PropaneCore.inventory()
+# PropaneCore.inventory()
+# STORAGE.materials
 
-PropaneCore.SCOPE

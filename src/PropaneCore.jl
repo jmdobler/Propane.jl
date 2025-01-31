@@ -26,9 +26,13 @@ struct Unit
 end
 
 macro Unit(name, capacity)
+    if capacity isa Expr && capacity.head == :block
+        return capacity
+    else
     u = Unit(String(name), Float64(capacity))
     _register(u)
     return u
+    end
 end
 
 mutable struct Stage
@@ -99,7 +103,7 @@ struct Scope
 end
 
 Scope() = Scope(Stage[], Phase[], Unit[])
-SCOPE = Scope()
+global SCOPE = Scope()
 
 _register(p::Phase, scope::Scope = SCOPE) = _getphase(p.name, scope) |> isempty ? push!(scope.phases, p) : error("A Phase with the name $(p.name) is already registered.")
 _register(s::Stage, scope::Scope = SCOPE) = _getstage(s.name, scope) |> isempty ? push!(scope.stages, s) : error("A Stage with the name $(s.name) is already registered.")
@@ -261,12 +265,15 @@ function run(scope::Scope = SCOPE)
     runcycles = 0
     runcalls = 0
     while Base.:|(urgentphases...)
+        calledphasesnames = ""
         runcycles += 1
         urgentphases = urgent.(scope.phases)
         for p in scope.phases[urgentphases]
             runcalls += 1
             p()
+            calledphasesnames *= ", $(p.name)"
         end
+        println("Cycle $runcycles", calledphasesnames)
     end
     return runcycles, runcalls
 end
