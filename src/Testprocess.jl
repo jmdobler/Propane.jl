@@ -2,22 +2,13 @@
 
 module Testprocess
 
-import ..PropaneCore: @Unit, @Stage, @Phase, @take, @source, @supply
+import ..PropaneCore: @Process, @Unit, @Stage, @Phase, @take, @source, @supply
 
-# First define the Stages of the process. Stages are intermediate states of the process, where a defined stream is inside a defined unit. 
-# Example: 
-#   @Unit R01 begin
-#       capacity = 1000             # Liters
-#       cost = 1.10                 # Euro per hour
-#   @Stage HCl_1M begin
-#@implement 
-
-
-#
-#   @implement HCl_1M in R01        # As an synthatic idea
-#
-
+# Used equipment for the process implementation with maximum filling volume in liters
+@Unit R01 700
 @Unit R02 1000
+
+@Process Final_Product 10 #312          # yield in kg
 
 @Stage Reaction_Solution
 @Stage WaterPhase
@@ -31,6 +22,8 @@ import ..PropaneCore: @Unit, @Stage, @Phase, @take, @source, @supply
     @supply Reaction_Solution 2100  # Maybe allow (solvent, keyraw, catalyst) => calculate based on amount and density
     @supply WaterPhase 650          # Liters that is
     # @supply Destillate 800        # FAILS, because Destillate is defined later in the file. Maybe allow forward definition of Stages within Phase blocks.
+    duration = 160                  # hours
+    volume = 2750                   # liters
 end
 
 @Stage Washed_Organic_Phase

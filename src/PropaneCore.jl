@@ -6,7 +6,7 @@ export Scope, SCOPE, phases, stages, units, process_summary, scopesummary
 export Stage, @Stage 
 export Unit, @Unit
 export Material, Storage, STORAGE, inventory
-export Phase, @Phase, CURRENT_PHASE, take, @take, supply, @supply, source, @source
+export Process, @Process, CURRENT_PROCESS, Phase, @Phase, CURRENT_PHASE, take, @take, supply, @supply, source, @source
 export run 
 
 # Todo: Phase Parameter definition, eg volume
@@ -19,15 +19,29 @@ export run
 # Todo: Add time tracking
 # Todo: orchestrate Phases based on Status
 
-struct PhaseEndTime
+const kg = 1
+const g = 1e-3kg
+const t = 1e3kg
+const h = 1
+const min = 60h
+
+abstract type TimedEvent end
+
+struct PhaseEndTime <: TimedEvent
     phasename::String
     endtime::Float64
 end
 
-Base.isless(x::PhaseEndTime, y::PhaseEndTime) = x.endtime < y.endtime
+struct Order <: TimedEvent
+    stagename::String
+    quantity::Float64
+    endtime::Float64
+end
 
-RunningPhases = BinaryMinMaxHeap{PhaseEndTime}
-x = RunningPhases([PhaseEndTime("A", 5.0), PhaseEndTime("B", 2.0), PhaseEndTime("C", 3.0)])
+function Base.isless(x::T, y::T) where T <: TimedEvent
+    return x.endtime < y.endtime
+end
+
 
 
 struct Unit
@@ -48,9 +62,22 @@ end
 
 
 
+struct Process 
+    name::String
+    yield::Float64
+end
+
+CURRENT_PROCESS = Process("", 0.0)
+
+macro Process(name, yield)
+    global CURRENT_PROCESS = Process(string(name), Float64(yield))
+    return Nothing  
+end
+
+
 mutable struct Stage
     name::String
-    process::String
+    process::Process
     allocation::Float64 #   Positive value = surplus that needs to be spent eventually, negative values = demand, which needs to be balanced urgently
                         # a Stage with a demand (ie a negative allocation) is a sink, with a surplus (positive allocation) is a source
                         # a Phase that supplys a Stage with a demand is urgent 
@@ -60,13 +87,13 @@ mutable struct Stage
                         # there should be a separate Phase that supplies the storage (say, a wet intermediate can be isolated or further dried and then isolated)
 end
 
-function Stage(name::String, process::String; allocation::Float64 = 0.0, isolated::Bool = false)
+function Stage(name::String, process::Process=CURRENT_PROCESS; allocation::Float64 = 0.0, isolated::Bool = false)
      return Stage(name, process, allocation, isolated)
 end
 
 macro Stage(name, isolate = false)
     isolate !== false && isolate == Symbol("isolated") ? is_isolated = true : is_isolated = false
-    s = Stage(string(name), string(__module__); isolated = is_isolated)
+    s = Stage(string(name); isolated = is_isolated)
     _register(s)
     return s
 end
@@ -75,47 +102,34 @@ end
 
 struct Phase
     name::String
-    process::String
+    process::Process
     actions::Vector{Expr}
+    interactions::Dict{Symbol, Number}        # inputs and outputs, used to store normalized @take, @source and @supply amounts
     parameters::Dict{Symbol, Number}
-    supplies::Vector{Stage}            # Vector{Stage}
-    sources::Vector{Stage}             # Vector{Stage} use findall-function to link
+    supplies::Vector{Stage}            
+    sources::Vector{Stage}             
 end 
 
-function Phase(name::String, processname::String)
-    return Phase(name, processname, Expr[], Dict(), Stage[], Stage[])
-end
-
-function Phase()
-    return Phase("", "", Expr[], Dict(), Stage[], Stage[])
+function Phase(name::String="", process::Process=CURRENT_PROCESS)
+    return Phase(name, process, Expr[], Dict(), Dict(), Stage[], Stage[])
 end
 
 function (p::Phase)() 
     return eval.(p.actions)
 end
 
-function (p::Phase)[]()
-    println("Executing Phase $(p.name)")
-    return eval.(p.actions)
-end
+global CURRENT_PHASE = Phase()
 
-CURRENT_PHASE = Phase()
-
-macro Phase(phasename)
-    global CURRENT_PHASE = Phase(string(phasename), string(__module__))    
-    _register(CURRENT_PHASE)
-    return CURRENT_PHASE
-end
 
 
 struct Scope
     stages::Vector{Stage}     
     phases::Vector{Phase}     
     units::Vector{Unit}
-    running_phases::BinaryMinMaxHeap{PhaseEndTime}
+    events::BinaryMinMaxHeap{TimedEvent}
 end
 
-Scope() = Scope(Stage[], Phase[], Unit[], BinaryMinMaxHeap{PhaseEndTime}())
+Scope() = Scope(Stage[], Phase[], Unit[], BinaryMinMaxHeap{TimedEvent}())
 global SCOPE = Scope()
 
 _register(p::Phase, scope::Scope = SCOPE) = _getphase(p.name, scope) |> isempty ? push!(scope.phases, p) : error("A Phase with the name $(p.name) is already registered.")
@@ -162,17 +176,9 @@ struct Storage
     materials::Dict{Material, Float64}
 end
 
-STORAGE = Storage(Dict{Material, Float64}())
 Base.getindex(storage::Storage, materialname::String) = for mat in keys(storage.materials) if mat.name == materialname return mat end end
 
-# function getmaterial(material::String)
-#     for mat in keys(STORAGE.materials)
-#         if mat.name == material
-#             return mat
-#         end
-#     end
-#     return Material(0, material)
-# end
+STORAGE = Storage(Dict{Material, Float64}())
 
 function inventory(storage::Storage = STORAGE)
     return [(key.name, value) for (key, value) in storage.materials if value != 0.0]
@@ -180,6 +186,8 @@ end
 
 
 function take(action::Pair{String, Float64})
+    # somehow address the phase interactions value * scale
+    
     mat = STORAGE[action[1]]
     if mat !== nothing
         STORAGE.materials[mat] -= action[2]
@@ -192,20 +200,31 @@ macro take(material, value)
     push!(CURRENT_PHASE.actions, Expr(:call, take, String(material) => Float64(value)))
 end
 
-macro Phase(phasename, block, kwargs...)
-
-    # set parameters
-    for arg in keys(NamedTuple(kwargs))
-        CURRENT_PHASE.parameters[arg] = kwargs[arg]
-    end
-
+macro Phase(phasename, block)
     # is block a begin ... end block?
     if block isa Expr
         if block.head == :block
             # @info dump(block)
-            global CURRENT_PHASE = Phase(string(phasename), string(__module__))
-            for macroexpr in filter(arg -> !(arg isa LineNumberNode), block.args) 
-                eval(macroexpr)
+            global CURRENT_PHASE = Phase(string(phasename), CURRENT_PROCESS)
+            for exprn in filter(arg -> !(arg isa LineNumberNode), block.args) 
+                if exprn.head == :macrocall
+                    # second argument is always a numerical value 
+                    # but could be liters
+                    
+                    # Somehow implement interactions dict
+                    
+                    # CURRENT_PHASE.interactions[Symbol(exprn.args[2])] = exprn.args[3]
+
+                    exprn.args[4] = eval(exprn.args[4]) / CURRENT_PROCESS.yield
+                    eval(exprn)
+                elseif exprn.head == :(=)
+                    if exprn.args[1] == :volume
+                        exprn.args[2] = eval(exprn.args[2]) / CURRENT_PROCESS.yield
+                    end
+                    CURRENT_PHASE.parameters[Symbol(exprn.args[1])] = exprn.args[2]
+                else
+                    throw("Unable to handle expression $exprn")
+                end
             end
             # global CURRENT_PHASE = Phase(String(phasename), eval.(filter(arg -> !(arg isa LineNumberNode), block.args)))
             _register(CURRENT_PHASE)
@@ -289,7 +308,7 @@ function run(scope::Scope = SCOPE)
         urgentphases = urgent.(scope.phases)
         for p in scope.phases[urgentphases]
             runcalls += 1
-            push!(scope.running_phases, PhaseEndTime(p.name, 5.6))
+            push!(scope.events, PhaseEndTime(p.name, 5.6))
             p()
             calledphasesnames *= ", $(p.name)"
         end
