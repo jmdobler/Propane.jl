@@ -60,7 +60,7 @@ end
     @source Concentrated_Product_Phase 380
     @take anti_solvent 750
     @supply Crystallized_Suspension 1130
-end
+end #, duration = 190, power = 1000 errors in any possible synthax
 
 @Stage Motherliquor
 @Stage Wet_Filter_Cake

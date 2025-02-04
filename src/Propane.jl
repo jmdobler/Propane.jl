@@ -18,3 +18,5 @@ PropaneCore.run()
 # PropaneCore.inventory()
 # STORAGE.materials
 
+length(SCOPE.running_phases)
+SCOPE.phases[4]

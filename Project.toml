@@ -3,7 +3,11 @@ uuid = "51f9e2f5-ef06-4552-9397-d50102dcc0b7"
 authors = ["Jens M. Döbler <jens.doebler@gmx.net>"]
 version = "0.0.1"
 
+[deps]
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+
 [compat]
+DataStructures = "0.18.20"
 julia = "1.10"
 
 [extras]

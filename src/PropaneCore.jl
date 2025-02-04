@@ -1,5 +1,7 @@
 module PropaneCore
 
+import DataStructures: BinaryMinMaxHeap
+
 export Scope, SCOPE, phases, stages, units, process_summary, scopesummary
 export Stage, @Stage 
 export Unit, @Unit
@@ -17,6 +19,15 @@ export run
 # Todo: Add time tracking
 # Todo: orchestrate Phases based on Status
 
+struct PhaseEndTime
+    phasename::String
+    endtime::Float64
+end
+
+Base.isless(x::PhaseEndTime, y::PhaseEndTime) = x.endtime < y.endtime
+
+RunningPhases = BinaryMinMaxHeap{PhaseEndTime}
+x = RunningPhases([PhaseEndTime("A", 5.0), PhaseEndTime("B", 2.0), PhaseEndTime("C", 3.0)])
 
 
 struct Unit
@@ -34,6 +45,8 @@ macro Unit(name, capacity)
     return u
     end
 end
+
+
 
 mutable struct Stage
     name::String
@@ -95,19 +108,19 @@ macro Phase(phasename)
 end
 
 
-
 struct Scope
     stages::Vector{Stage}     
     phases::Vector{Phase}     
-    units::Vector{Unit}     
+    units::Vector{Unit}
+    running_phases::BinaryMinMaxHeap{PhaseEndTime}
 end
 
-Scope() = Scope(Stage[], Phase[], Unit[])
+Scope() = Scope(Stage[], Phase[], Unit[], BinaryMinMaxHeap{PhaseEndTime}())
 global SCOPE = Scope()
 
 _register(p::Phase, scope::Scope = SCOPE) = _getphase(p.name, scope) |> isempty ? push!(scope.phases, p) : error("A Phase with the name $(p.name) is already registered.")
 _register(s::Stage, scope::Scope = SCOPE) = _getstage(s.name, scope) |> isempty ? push!(scope.stages, s) : error("A Stage with the name $(s.name) is already registered.")
-_register(u::Unit, scope::Scope = SCOPE) = _getunit(u.name, scope) |> isempty ? push!(scope.units, u) : error("A Unit with the name $(u.name) is already registered.")  
+_register(u::Unit,  scope::Scope = SCOPE) = _getunit(u.name, scope)  |> isempty ? push!(scope.units, u)  : error("A Unit with the name $(u.name) is already registered.")  
 
 function Base.show(io::IO, scope::Scope)
     println(io, "Scope with $(length(scope.stages)) Stages:")
@@ -179,13 +192,19 @@ macro take(material, value)
     push!(CURRENT_PHASE.actions, Expr(:call, take, String(material) => Float64(value)))
 end
 
-macro Phase(phasename, block)
+macro Phase(phasename, block, kwargs...)
+
+    # set parameters
+    for arg in keys(NamedTuple(kwargs))
+        CURRENT_PHASE.parameters[arg] = kwargs[arg]
+    end
+
     # is block a begin ... end block?
     if block isa Expr
         if block.head == :block
             # @info dump(block)
             global CURRENT_PHASE = Phase(string(phasename), string(__module__))
-            for macroexpr in filter(arg -> !(arg isa LineNumberNode), block.args)
+            for macroexpr in filter(arg -> !(arg isa LineNumberNode), block.args) 
                 eval(macroexpr)
             end
             # global CURRENT_PHASE = Phase(String(phasename), eval.(filter(arg -> !(arg isa LineNumberNode), block.args)))
@@ -270,6 +289,7 @@ function run(scope::Scope = SCOPE)
         urgentphases = urgent.(scope.phases)
         for p in scope.phases[urgentphases]
             runcalls += 1
+            push!(scope.running_phases, PhaseEndTime(p.name, 5.6))
             p()
             calledphasesnames *= ", $(p.name)"
         end
