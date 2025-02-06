@@ -8,7 +8,7 @@ using .PropaneCore              # seems like the order matters, using .PropaneCo
 @assert Main.SCOPE === PropaneCore.SCOPE
 
 # SCOPE
-SCOPE.stages[end].allocation = -1000 
+PropaneCore.SCOPE.stages[end].allocation = -1000 
 
 # SCOPE.stages[1].allocation = -4000 
 # STORAGE.materials[Material(1, "C")] = 100
@@ -18,5 +18,9 @@ PropaneCore.run()
 # PropaneCore.inventory()
 # STORAGE.materials
 
-length(SCOPE.events)
-SCOPE.phases[1]
+# length(SCOPE.events)
+# SCOPE.phases[1]
+# SCOPE
+
+# PropaneCore.urgent.(PropaneCore.SCOPE.phases)
+# PropaneCore.SCOPE.phases[end]

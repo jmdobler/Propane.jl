@@ -1,4 +1,6 @@
 # Beispiel File für einen Prozess
+#include("PropaneCore.jl")
+
 
 module Testprocess
 
@@ -8,7 +10,7 @@ import ..PropaneCore: @Process, @Unit, @Stage, @Phase, @take, @source, @supply
 @Unit R01 700
 @Unit R02 1000
 
-@Process Final_Product 10 #312          # yield in kg
+@Process Final_Product 312 #312          # yield in kg
 
 @Stage Reaction_Solution
 @Stage WaterPhase
@@ -53,12 +55,12 @@ end
     @source Concentrated_Product_Phase 380
     @take anti_solvent 750
     @supply Crystallized_Suspension 1130
-end #, duration = 190, power = 1000 errors in any possible synthax
+end
 
 @Stage Motherliquor
 @Stage Wet_Filter_Cake
 
-@Phase Filtering begin
+@Phase Filtration begin
     @source Crystallized_Suspension 1130
     @supply Wet_Filter_Cake 425
     @supply Motherliquor 705
@@ -69,8 +71,11 @@ end
 @Stage Finished_Product isolated
 
 @Phase Drying begin
+    @take Nitrogen 102
     @source Wet_Filter_Cake 425
     @supply Finished_Product 312
+    duration = 18
+    volume = 300
 end
 
 end # Module Testprocess
