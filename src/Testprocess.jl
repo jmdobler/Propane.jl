@@ -1,6 +1,4 @@
 # Beispiel File für einen Prozess
-#include("PropaneCore.jl")
-
 
 module Testprocess
 
@@ -10,7 +8,7 @@ import ..PropaneCore: @Process, @Unit, @Stage, @Phase, @take, @source, @supply
 @Unit R01 700
 @Unit R02 1000
 
-@Process Final_Product 312 #312          # yield in kg
+@Process Final_Product 312          # yield in kg
 
 @Stage Reaction_Solution
 @Stage WaterPhase
