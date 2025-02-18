@@ -1,8 +1,8 @@
 # Beispiel File für einen Prozess
 
-module Testprocess
+#module Testprocess
 
-import ..PropaneCore: @Process, @Unit, @Stage, @Phase, @take, @source, @supply
+#import ..PropaneCore: @Process, @Unit, @Stage, @Phase, @take, @source, @supply
 
 # Used equipment for the process implementation with maximum filling volume in liters
 @Unit R01 700
@@ -22,8 +22,8 @@ import ..PropaneCore: @Process, @Unit, @Stage, @Phase, @take, @source, @supply
     @supply Reaction_Solution 2100  # Maybe allow (solvent, keyraw, catalyst) => calculate based on amount and density
     @supply WaterPhase 650          # Liters that is
     # @supply Destillate 800        # FAILS, because Destillate is defined later in the file. Maybe allow forward definition of Stages within Phase blocks.
-    duration = 160                  # hours
-    volume = 2750                   # liters
+    duration = 160.0                  # hours
+    volume = 2750.0                   # liters
 end
 
 @Stage Washed_Organic_Phase
@@ -66,14 +66,14 @@ end
     @supply Motherliquor 110
 end
 
-@Stage Finished_Product isolated
+@Stage Final_Product isolated
 
 @Phase Drying begin
     @take Nitrogen 102
     @source Wet_Filter_Cake 425
-    @supply Finished_Product 312
+    @supply Final_Product 312
     duration = 18
     volume = 300
 end
 
-end # Module Testprocess
+#end # Module Testprocess

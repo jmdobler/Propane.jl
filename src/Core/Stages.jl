@@ -1,7 +1,7 @@
 module Stages
 
 import  ..Basetypes: Process, CURRENT_PROCESS
-export Stage, @Stage
+export Stage
 
 
 mutable struct Stage
@@ -20,12 +20,7 @@ function Stage(name::String, process::Process=CURRENT_PROCESS; allocation::Float
     return Stage(name, process, allocation, isolated)
 end
 
-macro Stage(name, isolate = false)
-    isolate !== false && isolate == Symbol("isolated") ? is_isolated = true : is_isolated = false
-    s = Stage(string(name); isolated = is_isolated)
-    _register(s)
-    return s
-end
+
 
 
 end # module Stages

@@ -18,6 +18,34 @@ function Scope()
 end
 # global SCOPE = Scope()
 
+function _getstage(stagename::String, scope::Scope = SCOPE)
+    stageindices = findall(stage -> stage.name == stagename, scope.stages)
+    if !isempty(stageindices)
+        return scope.stages[first(stageindices)]
+    else
+        return nothing
+    end
+end
+
+function _getphase(phasename::String, scope::Scope = SCOPE)
+    phaseindices = findall(phase -> phase.name == phasename, scope.phases) 
+    if !isempty(phaseindices)
+        return scope.phases[first(phaseindices)]
+    else
+        return nothing
+    end
+end
+
+function _getunit(unitname::String, scope::Scope = SCOPE)
+    unitindices = findall(unit -> unit.name == unitname, scope.units) 
+    if !isempty(unitindices)
+        return scope.units[first(unitindices)]
+    else
+        return nothing
+    end
+end
+
+
 Base.isempty(::Nothing) = true
 _register(p::Phase, scope::Scope = SCOPE) = _getphase(p.name, scope) |> isempty ? push!(scope.phases, p) : error("A Phase with the name $(p.name) is already registered.")
 _register(s::Stage, scope::Scope = SCOPE) = _getstage(s.name, scope) |> isempty ? push!(scope.stages, s) : error("A Stage with the name $(s.name) is already registered.")
