@@ -99,13 +99,30 @@ end
 
 
 
-function run!(scenario::Scenario; max_cycles::Int64 = 1000)
-    # Initialize
-    if length(scenario.events) == 0
+function run!(scenario::Scenario, max_cycles::Int64 = 100)
+    if length(scenario.eventlog.events) == 0
         error("Place some orders first. Use the function placeorder to do so.")
     end
 
-    return scenario.events.logs
+    logmessage("Starting run", scenario.eventlog.logs)
+    runtime = 0.0	
+    runcycles = 0
+   
+    while length(scenario.eventlog.events) > 0          # || runcycles < max_cycles
+        @info runcycles += 1 
+        @info length(scenario.eventlog.events)
+        event = pop!(scenario.eventlog)
+        runtime += event.endtime
+        
+        if event isa PhaseEndTime
+            logdata(runtime, "Phase $(event.phasename) finished", scenario.eventlog.logs)
+        elseif event isa Order
+            logdata(runtime, "Order for $(event.product.name) complete", scenario.eventlog.logs)
+        end
+        
+        
+    end
+    return scenario.eventlog.logs
 end
 
 end # Module PropaneCore

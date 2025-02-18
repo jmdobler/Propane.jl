@@ -3,7 +3,7 @@ module Events
 import ..Basetypes: Material
 import DataStructures: BinaryMinMaxHeap
 export PhaseEndTime, Order, EventSystem
-export Logger                                       # TODO: remove later
+export Logger, logmessage, logdata                         # TODO: remove later
 
 abstract type TimedEvent end
 
@@ -25,7 +25,6 @@ end
 function Base.isless(x::T, y::T) where T <: TimedEvent
     return x.endtime < y.endtime
 end
-
 
 
 struct Logger

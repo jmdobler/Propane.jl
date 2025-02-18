@@ -20,4 +20,4 @@ placeorder!(scenario_2k, "Final_Product", 1000.0, 5.0)
 placeorder!(scenario_2k, "Final_Product", 1000.0, 100.0)
 
 
-run!(scenario_2k)
+results = PropaneCore.run!(scenario_2k)
