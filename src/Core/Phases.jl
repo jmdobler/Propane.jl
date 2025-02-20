@@ -6,13 +6,6 @@ export Phase, @Phase, CURRENT_PHASE
 export @take, @source, @supply
 export PhaseFunction
 
-const kg = 1
-const g = 1e-3kg
-const t = 1e3kg
-const h = 1
-const min = 60h
-
-
 struct Phase
     name::String
     process::Process

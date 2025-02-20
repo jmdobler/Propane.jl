@@ -15,15 +15,14 @@
 
 @Phase Synthesis begin
     @take keyraw 300                # all amounts in kg
-    @take solvent 1802
-    @take water 560
+    @take solvent 1.802             # kg is the default, but kg, g, t can be specified
+    @take water 560kg
     @take reagent 90.5
-    @take catalyst 5.5
+    @take catalyst 5050g
     @supply Reaction_Solution 2100  # Maybe allow (solvent, keyraw, catalyst) => calculate based on amount and density
     @supply WaterPhase 650          # Liters that is
-    # @supply Destillate 800        # FAILS, because Destillate is defined later in the file. Maybe allow forward definition of Stages within Phase blocks.
-    duration = 160.0                  # hours
-    volume = 2750.0                   # liters
+    duration = 160.0                # hours
+    volume = 2750.0                 # liters
 end
 
 @Stage Washed_Organic_Phase

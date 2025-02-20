@@ -1,12 +1,19 @@
 module PropaneMacros
 
+import Dates: DateTime, DateFormat
 import ..Basetypes: Material, Process, CURRENT_PROCESS
 import ..EquipmentUnits: Unit
 import ..Stages: Stage
 import ..Phases: Phase, take, source, supply
 import ..Scopes
 
-export @Unit, @Stage, @Phase, @take, @source, @supply
+export @Unit, @Stage, @Phase, @take, @source, @supply, @due_str
+
+const kg = 1
+const g = 1e-3kg
+const t = 1e3kg
+const h = 1
+const min = 60h
 
 macro Unit(name, capacity)
     if capacity isa Expr && capacity.head == :block
@@ -85,5 +92,10 @@ macro Phase(phasename, block)
         throw("Second argument must be an expression block using begin ... end syntax")
     end
 end
+
+macro due_str(date)
+    return DateTime(date, DateFormat("d.m.y"))
+end
+
 
 end # module PropaneMacros

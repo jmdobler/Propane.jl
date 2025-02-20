@@ -1,5 +1,7 @@
 module PropaneCore
 
+import Dates
+
 include("Core/Basetypes.jl")
 using .Basetypes
 
@@ -35,7 +37,7 @@ export Stage, @Stage
 export Unit, @Unit
 export Material, Storage, STORAGE, inventory
 export Process, @Process, CURRENT_PROCESS, Phase, @Phase, CURRENT_PHASE, take, @take, supply, @supply, source, @source
-export Scenario, placeorder!, run, run! 
+export Scenario, placeorder!, @due_str, run, run! 
 
 # Todo: Phase Parameter definition, eg volume
 # Todo: Phase Quantity normalisation by target amount or only @taking relative wt's and vol's
@@ -99,25 +101,25 @@ end
 
 
 
-function run!(scenario::Scenario, max_cycles::Int64 = 100)
+function run!(scenario::Scenario, max_cycles::Int64 = 100, start_datetime::Dates.DateTime = Dates.now())
     if length(scenario.eventlog.events) == 0
         error("Place some orders first. Use the function placeorder to do so.")
     end
 
-    logmessage("Starting run", scenario.eventlog.logs)
-    runtime = 0.0	
+    logmessage!(scenario.eventlog.logs, "Starting run")
+    runtime = start_datetime	
     runcycles = 0
    
     while length(scenario.eventlog.events) > 0          # || runcycles < max_cycles
         @info runcycles += 1 
         @info length(scenario.eventlog.events)
         event = pop!(scenario.eventlog)
-        runtime += event.endtime
+        runtime = event.endtime
         
         if event isa PhaseEndTime
-            logdata(runtime, "Phase $(event.phasename) finished", scenario.eventlog.logs)
+            logdata!(scenario.eventlog.logs, runtime, "Phase $(event.phasename) finished")
         elseif event isa Order
-            logdata(runtime, "Order for $(event.product.name) complete", scenario.eventlog.logs)
+            logdata!(scenario.eventlog.logs,runtime, "Order for $(event.product.name) complete")
         end
         
         

@@ -9,15 +9,20 @@ production_area = Scope()
 
 # Define what is in the scope
 include("Testprocess.jl") 
-# include("Testprocess.jl")
-#include more processes here
+# include("Testprocess.jl") fails because unitname, stagenames and phasesnames must be unique -- TODO Append the processname for internal use
 
-# Demands are not part of the scope. They belong to the simulation.
-# TODO: Simulation rename in Scenario
-# 
 scenario_2k = Scenario(production_area)
-placeorder!(scenario_2k, "Final_Product", 1000.0, 5.0)
-placeorder!(scenario_2k, "Final_Product", 1000.0, 100.0)
+placeorder!(scenario_2k, "Final_Product", 1000.0, due"06.12.2025")
+placeorder!(scenario_2k, "Final_Product", 1000.0, due"24.12.2025")
 
 
 results = PropaneCore.run!(scenario_2k)
+
+
+
+
+
+duedate1 = due"18.12.2025"
+duedate2 = due"14.12.2025"
+
+duedates = [dt for dt in due"01.01.2025":Week(1):due"31.12.2025"]

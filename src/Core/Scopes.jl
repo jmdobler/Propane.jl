@@ -47,9 +47,9 @@ end
 
 
 Base.isempty(::Nothing) = true
-_register(p::Phase, scope::Scope = SCOPE) = _getphase(p.name, scope) |> isempty ? push!(scope.phases, p) : error("A Phase with the name $(p.name) is already registered.")
-_register(s::Stage, scope::Scope = SCOPE) = _getstage(s.name, scope) |> isempty ? push!(scope.stages, s) : error("A Stage with the name $(s.name) is already registered.")
-_register(u::Unit,  scope::Scope = SCOPE) = _getunit(u.name, scope)  |> isempty ? push!(scope.units, u)  : error("A Unit with the name $(u.name) is already registered.")  
+_register(p::Phase, scope::Scope = SCOPE) = _getphase(p.name, scope) === nothing ? push!(scope.phases, p) : error("A Phase with the name $(p.name) is already registered.")
+_register(s::Stage, scope::Scope = SCOPE) = _getstage(s.name, scope) === nothing ? push!(scope.stages, s) : error("A Stage with the name $(s.name) is already registered.")
+_register(u::Unit,  scope::Scope = SCOPE) = _getunit(u.name, scope)  === nothing ? push!(scope.units, u)  : error("A Unit with the name $(u.name) is already registered.")  
 
 function Base.show(io::IO, scope::Scope)
     println(io, "Scope with $(length(scope.stages)) Stages:")

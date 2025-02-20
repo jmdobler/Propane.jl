@@ -1,24 +1,25 @@
 module Events
 
-import ..Basetypes: Material
+import Dates: DateTime
 import DataStructures: BinaryMinMaxHeap
+import ..Basetypes: Material
 export PhaseEndTime, Order, EventSystem
-export Logger, logmessage, logdata                         # TODO: remove later
+export Logger, logmessage!, logdata!                         # TODO: remove later
 
 abstract type TimedEvent end
 
 struct PhaseEndTime <: TimedEvent
     phasename::String
-    endtime::Float64
+    endtime::DateTime
 end
 
 struct Order <: TimedEvent
     product::Material
     quantity::Float64
-    endtime::Float64
+    endtime::DateTime
 end
 
-function Order(productname::String, quantity::Float64, endtime::Float64)
+function Order(productname::String, quantity::Float64, endtime::DateTime)
     return Order(Material(productname), quantity, endtime)
 end
 
@@ -28,7 +29,7 @@ end
 
 
 struct Logger
-    time::Vector{Float64}
+    time::Vector{DateTime}
     data::Vector{Any}
     messages::Vector{String}
 end
@@ -46,12 +47,12 @@ end
 
 Logger() = Logger(Float64[], Any[], String[])
 
-function logdata(time::Float64, data::Any, logger::Logger = LOGGER)
+function logdata!(logger::Logger, time::DateTime, data::Any)
     push!(logger.time, time)
     push!(logger.data, data)
 end
 
-logmessage(message::String, logger::Logger = LOGGER) = push!(logger.messages, message)
+logmessage!(logger::Logger, message::String) = push!(logger.messages, message)
 
 
 
