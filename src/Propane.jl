@@ -4,6 +4,8 @@
 include("PropaneCore.jl") 
 using .PropaneCore
 
+using Dates
+
 # Set the scope
 production_area = Scope() 
 
@@ -13,7 +15,7 @@ include("Testprocess.jl")
 
 scenario_2k = Scenario(production_area)
 placeorder!(scenario_2k, "Final_Product", 1000.0, due"06.12.2025")
-placeorder!(scenario_2k, "Final_Product", 1000.0, due"24.12.2025")
+placeorder!(scenario_2k, "Final_Product", 800.0, [dt for dt in due"01.01.2025":Week(1):due"31.12.2025"])
 
 
 results = PropaneCore.run!(scenario_2k)
