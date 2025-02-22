@@ -24,7 +24,7 @@ results = PropaneCore.run!(scenario_2k)
 
 
 
-duedate1 = due"18.12.2025"
-duedate2 = due"14.12.2025"
+# duedate1 = due"18.12.2025"
+# duedate2 = due"14.12.2025"
 
-duedates = [dt for dt in due"01.01.2025":Week(1):due"31.12.2025"]
+# duedates = [dt for dt in due"01.01.2025":Week(1):due"31.12.2025"]

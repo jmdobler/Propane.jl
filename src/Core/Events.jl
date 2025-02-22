@@ -3,7 +3,7 @@ module Events
 import Dates: DateTime
 import DataStructures: BinaryMinMaxHeap
 import ..Basetypes: Material
-export PhaseEndTime, Order, EventSystem
+export PhaseEndTime, Order, EventSystem, popmax!
 export Logger, logmessage!, logdata!                         # TODO: remove later
 
 abstract type TimedEvent end
@@ -24,7 +24,7 @@ function Order(productname::String, quantity::Float64, endtime::DateTime)
 end
 
 function Base.isless(x::T, y::T) where T <: TimedEvent
-    return x.endtime < y.endtime
+    return x.endtime > y.endtime            # this is a strange workaround because popmax! doesn't work.
 end
 
 
@@ -45,7 +45,7 @@ function Base.show(io::IO, logger::Logger)
     end
 end
 
-Logger() = Logger(Float64[], Any[], String[])
+Logger() = Logger(DateTime[], Any[], String[])
 
 function logdata!(logger::Logger, time::DateTime, data::Any)
     push!(logger.time, time)
@@ -65,8 +65,9 @@ function EventSystem()
     return EventSystem(BinaryMinMaxHeap{TimedEvent}(), Logger())
 end
 
-Base.push!(es::EventSystem, event::T) where T <: TimedEvent= push!(es.events, event)
+Base.push!(es::EventSystem, event::T) where T <: TimedEvent = push!(es.events, event)
 Base.pop!(es::EventSystem) = pop!(es.events)
+popmax!(es::EventSystem) = popmax!(es.events)
 Base.length(es::EventSystem) = length(es.events)
 
 end # module Events
