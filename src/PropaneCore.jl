@@ -111,9 +111,10 @@ function run!(scenario::Scenario, max_cycles::Int64 = 100, start_datetime::Dates
     runcycles = 0
    
     while length(scenario.eventlog.events) > 0          # || runcycles < max_cycles
-        @info runcycles += 1 
-        @info length(scenario.eventlog.events)
-        event = pop!(scenario.eventlog)
+        runcycles += 1
+
+        event = pop!(scenario.eventlog)                 # the way "isless" is defined for TimedEvents makes this pop the latest dated event
+        
         runtime = event.endtime
         
         if event isa PhaseEndTime
