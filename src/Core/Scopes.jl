@@ -4,16 +4,17 @@ import ..Stages: Stage
 import ..Phases: Phase
 import ..EquipmentUnits: Unit
 export Scope, SCOPE
-export within
+export within, max_scalefactor
 
 struct Scope
     stages::Vector{Stage}     
     phases::Vector{Phase}     
     units::Vector{Unit}
+    implementations::Dict{Phase, Unit}
 end
 
 function Scope() 
-    global SCOPE = Scope(Stage[], Phase[], Unit[])
+    global SCOPE = Scope(Stage[], Phase[], Unit[], Dict{Phase, Unit}())
     return SCOPE
 end
 # global SCOPE = Scope()
@@ -60,17 +61,31 @@ function Base.show(io::IO, scope::Scope)
     for p in scope.phases
         println(io, repeat(" ", 4), p.name)
     end
+    println(io, "Scope with $(length(scope.units)) Units:")
+    for u in scope.units
+        println(io, repeat(" ", 4), u.name)
+    end 
 end
 
 phases(scope::Scope = SCOPE) = scope.phases
 stages(scope::Scope = SCOPE) = scope.stages
 units(scope::Scope = SCOPE) = scope.units
 
-function within(f::Function, scope::Scope) 
-    global SCOPE = scope
-    f()
+
+function max_scalefactor(p::Phase, impl::Dict{Phase, Unit} = SCOPE.implementations) 
+    if haskey(p.parameters, :volume)
+        vol = p.parameters[:volume]
+    else
+        vol = 1.25 * p.parameters[:defaultvolume]
+    end
+
+    if haskey(impl, p)
+        capacity = impl[p].capacity
+    else
+        capacity = NaN
+    end
+
+    return capacity / vol 
 end
-
-
 
 end # module Scopes

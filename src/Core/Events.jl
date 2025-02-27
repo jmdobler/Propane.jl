@@ -3,6 +3,7 @@ module Events
 import Dates: DateTime
 import DataStructures: BinaryMinMaxHeap
 import ..Basetypes: Material
+import ..Scopes: Scope
 export PhaseEndTime, Order, EventSystem, popmax!
 export Logger, logmessage!, logdata!                         # TODO: remove later
 
@@ -23,9 +24,18 @@ function Order(productname::String, quantity::Float64, endtime::DateTime)
     return Order(Material(productname), quantity, endtime)
 end
 
+function (order::Order)()
+    Scopes._getstage(order.product.name).allocation -= order.quantity
+    return nothing
+end
+
 function Base.isless(x::T, y::T) where T <: TimedEvent
     return x.endtime > y.endtime            # this is a strange workaround because popmax! doesn't work.
 end
+
+
+
+
 
 
 struct Logger

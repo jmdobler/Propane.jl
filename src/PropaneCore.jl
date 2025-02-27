@@ -5,9 +5,6 @@ import Dates
 include("Core/Basetypes.jl")
 using .Basetypes
 
-include("Core/Events.jl")
-using .Events
-
 include("Core/Stages.jl")
 using .Stages
 
@@ -19,6 +16,9 @@ using .Phases
 
 include("Core/Scopes.jl")
 using .Scopes
+
+include("Core/Events.jl")
+using .Events
 
 include("Core/Scenarios.jl")
 using .Scenarios
@@ -36,8 +36,9 @@ export Scope, SCOPE, phases, stages, units, process_summary, scopesummary, withi
 export Stage, @Stage 
 export Unit, @Unit
 export Material, Storage, STORAGE, inventory
-export Process, @Process, CURRENT_PROCESS, Phase, @Phase, CURRENT_PHASE, take, @take, supply, @supply, source, @source
+export Process, @Process, CURRENT_PROCESS, Phase, @Phase, CURRENT_PHASE, take, @take, supply, @supply, source, @source, @implement
 export Scenario, placeorder!, @due_str, run, run! 
+export #= temporarilly =# max_scalefactor
 
 # Todo: Phase Parameter definition, eg volume
 # Todo: Phase Quantity normalisation by target amount or only @taking relative wt's and vol's
@@ -88,7 +89,7 @@ function run(scope::Scope = SCOPE, logger::Logger = LOGGER; max_cycles::Int64 = 
         urgentphases = urgent.(scope.phases)
         for p in scope.phases[urgentphases]
             runcalls += 1
-            pf = PhaseFunction(p, 100.0)                    #push!(scope.events, PhaseEndTime(p.name, 5.6))
+            # pf = PhaseFunction(p, 100.0)                    #push!(scope.events, PhaseEndTime(p.name, 5.6))
             time += pf()                                    
             calledphasesnames *= ", $(p.name)"
         end
@@ -118,9 +119,17 @@ function run!(scenario::Scenario, max_cycles::Int64 = 100, start_datetime::Dates
         runtime = event.endtime
         
         if event isa PhaseEndTime
+            # Call the Phase-Event will create ...
+            event(runtime)
             logdata!(scenario.eventlog.logs, runtime, "Phase $(event.phasename) finished")
+
         elseif event isa Order
-            logdata!(scenario.eventlog.logs,runtime, "Order for $(event.product.name) complete")
+            # Call the Order-Event will create a demand (negative stage allocation) for the given product
+            event()
+            logdata!(scenario.eventlog.logs, runtime, "Order for $(event.product.name) complete")
+
+            # Add urgent Phases into the event queue
+            push!(scenario.eventlog.events, urgent.(scope.phases))
         end
         
         

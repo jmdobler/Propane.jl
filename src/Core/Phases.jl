@@ -1,7 +1,7 @@
 module Phases
 
 import ..Basetypes: Process, CURRENT_PROCESS
-import ..Events: EventSystem
+# import ..Events: EventSystem
 export Phase, @Phase, CURRENT_PHASE
 export @take, @source, @supply
 export PhaseFunction
@@ -10,7 +10,6 @@ struct Phase
     name::String
     process::Process
     actions::Vector{Expr}
-    # interactions::Dict{Symbol, Number}        # inputs and outputs, used to store normalized @take, @source and @supply amounts
     parameters::Dict{Symbol, Number}
     inputs::Vector{String}
     outputs::Vector{String}
@@ -25,6 +24,9 @@ end
 function (p::Phase)() 
     return eval.(p.actions)
 end
+
+# specific_volume(p::Phase) = ifelse(haskey(p.parameters, :volume), p.parameters[:volume], 1.25 *p.parameters[:defaultvolume])
+
 
 function Base.show(io::IO, p::Phase)
     println(io, "Phasename: ", p.name)

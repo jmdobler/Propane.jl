@@ -7,7 +7,7 @@ import ..Stages: Stage
 import ..Phases: Phase, take, source, supply
 import ..Scopes
 
-export @Unit, @Stage, @Phase, @take, @source, @supply, @due_str
+export @Unit, @Stage, @Phase, @take, @source, @supply, @implement, @due_str
 
 const kg = 1
 const g = 1e-3kg
@@ -43,6 +43,12 @@ end
 
 macro supply(stagename, value)
     push!(CURRENT_PHASE.outputs, String(stagename))
+    #ifelse(haskey(CURRENT_PHASE.parameters, :defaultvolume), CURRENT_PHASE.parameters[:defaultvolume] += Float64(value), CURRENT_PHASE.parameters[:defaultvolume] = Float64(value))
+    if haskey(CURRENT_PHASE.parameters, :defaultvolume)
+        CURRENT_PHASE.parameters[:defaultvolume] += Float64(value)
+    else
+        CURRENT_PHASE.parameters[:defaultvolume] = Float64(value)
+    end
     push!(CURRENT_PHASE.actions, Expr(:call, supply, String(stagename) => Float64(value)))
 end
 
@@ -90,6 +96,26 @@ macro Phase(phasename, block)
         end
     else
         throw("Second argument must be an expression block using begin ... end syntax")
+    end
+end
+
+macro implement(phase_in_unit)
+    if phase_in_unit isa Expr
+        if phase_in_unit.head == :call
+            if phase_in_unit.args[1] == :in
+                # return Expr(:call, Expr(:call, :implement, String(phase_in_unit.args[2]), CURRENT_UNIT))
+                p = Scopes._getphase(String(phase_in_unit.args[2]))
+                u = Scopes._getunit(String(phase_in_unit.args[3]))
+                Scopes.SCOPE.implementations[p] = u
+                return (p, u) #dump(phase_in_unit)
+            else
+                throw("Error in expression $phase_in_unit")
+            end
+        else
+            throw("Error in expression $phase_in_unit")
+        end        
+    else
+        throw("Error in expression $phase_in_unit")
     end
 end
 

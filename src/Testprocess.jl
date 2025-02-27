@@ -1,10 +1,7 @@
-# Beispiel File für einen Prozess
-
 #module Testprocess
 
 #import ..PropaneCore: @Process, @Unit, @Stage, @Phase, @take, @source, @supply
 
-# Used equipment for the process implementation with maximum filling volume in liters
 @Unit R01 700
 @Unit R02 1000
 
@@ -25,6 +22,9 @@
     volume = 2750.0                 # liters
 end
 
+@implement Synthesis in R01         # currently doesn't error but does nothing partically exciting, only return phase and unit. 
+    	                            # TODO Calucate max_scalefactor based on volume
+
 @Stage Washed_Organic_Phase
 @Stage Wastewater
 
@@ -36,6 +36,8 @@ end
     @supply Wastewater 220
     @supply Washed_Organic_Phase 2030
 end
+
+@implement Workup_Extraction in R02
 
 @Stage Concentrated_Product_Phase
 @Stage Solvent_Destillate

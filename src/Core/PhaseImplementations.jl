@@ -3,6 +3,7 @@ module PhaseImplementations
 import ..Phases: Phase
 import ..EquipmentUnits: Unit
 import ..Scenarios: Scenario
+import ..Scopes: _getphase
 
 struct PhaseImplementation
     phasename::String
@@ -12,11 +13,16 @@ struct PhaseImplementation
     duration::Float64
 end
 
-function PhaseImplementation(scenario::Scenario, phase::Phase, unit::Unit, scalefactor::Float64)
+function PhaseImplementation(scenario::Scenario, phasename::String, unit::Unit, requirement::Float64)
+    # requirement in kg
+
     # Check, if unit is available
-    
-    
-    
+    #...
+    phase = _getphase(phasename, scenario.scope)
+    max_usable_volume = unit.capacity
+    max_required_volume = requirement * max_scalefactor(phase)
+    scalefactor = max_required_volume / max_usable_volume
+
     # On creation of a PhaseImplementation object, call the supplied actions with the scalefactor
     # Copy the input actions (take and source) with the appropiate scalefactor into the phaseactions vector
     
@@ -33,7 +39,7 @@ function PhaseImplementation(scenario::Scenario, phase::Phase, unit::Unit, scale
 
     eval.(suppliedactions)
     duration = haskey(phase.parameters, :duration) ? phase.parameters[:duration] : 1.0
-    return PhaseFunction(phase.name, inputactions, scalefactor, duration) 
+    return # PhaseImplementation(phase.name, inputactions, scalefactor, duration) 
 end
 
 function (pf::PhaseImplementation)(scenario::Scenario)
