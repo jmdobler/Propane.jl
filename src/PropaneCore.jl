@@ -128,7 +128,7 @@ function run!(scenario::Scenario, max_cycles::Int64 = 100, start_datetime::Dates
             event()
             logdata!(scenario.eventlog.logs, runtime, "Order for $(event.product.name) complete")
 
-            # Add urgent Phases into the event queue
+            # Add urgent Phases into the event queue (heap)
             push!(scenario.eventlog.events, urgent.(scope.phases))
         end
         
